@@ -1,7 +1,6 @@
 use std::hash::Hash;
 use std::process::Command;
-use std::ptr::hash;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendMessageParams, SendVideoParams};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 
@@ -55,6 +54,12 @@ async fn main() {
 
 async fn create_output_dir() {
     let output_dir = std::path::Path::new("./video");
+
+    // Delete old videos
+    if output_dir.exists() {
+        std::fs::remove_dir_all(output_dir).expect("Failed to remove video dir");
+    }
+
     if !output_dir.exists() {
         std::fs::create_dir(output_dir).expect("Failed to create video dir");
     }
@@ -107,4 +112,6 @@ async fn process_message(message: Message, api: AsyncApi) {
     if let Err(err) = api.send_video(&send_video_params).await {
         println!("Failed to send message: {err:?}");
     }
+
+    std::fs::remove_file(file).expect("Failed to remove video file");
 }
