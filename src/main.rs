@@ -66,52 +66,57 @@ async fn create_output_dir() {
 }
 
 async fn process_message(message: Message, api: AsyncApi) {
-    let text = message.text.unwrap();
-
-    let tiktok_regex = regex::Regex::new(TIKTOK_REGEX).unwrap();
-    if !tiktok_regex.is_match(&*text) {
-        log::info!("Not a tiktok url {}", text);
-        return;
-    }
-
-    log::info!("Downloading tiktok {}", text);
-
-    let send_typing_params = SendChatActionParams::builder()
-        .chat_id(message.chat.id)
-        .action(ChatAction::UploadVideo)
-        .build();
-
-    if let Err(err) = api.send_chat_action(&send_typing_params).await {
-        println!("Failed to send message: {err:?}");
-    }
-
-    let uuid = uuid::Uuid::new_v4().to_string();
-    let name_file = "./video/".to_owned() + &*uuid + ".mp4";
-    let file = std::path::Path::new(&*name_file);
-
-    let yt_dlp_path = std::env::var("YT_DLP")
-        .expect("YT_DLP not set in env");
-
-    let output = Command::new(yt_dlp_path)
-        .args(["-v", &text])
-        .args(["-o", &name_file])
-        .output()
-        .expect("failed to execute process");
-    println!("output: {}", String::from_utf8_lossy(&output.stdout));
-
-    let send_video_params = SendVideoParams::builder()
-        .chat_id(message.chat.id)
-        .video(FileUpload::InputFile(
-            InputFile {
-                path: file.to_path_buf(),
+    match message.text {
+        Some(text) => {
+            let tiktok_regex = regex::Regex::new(TIKTOK_REGEX).unwrap();
+            if !tiktok_regex.is_match(&*text) {
+                log::info!("Not a tiktok url {}", text);
+                return;
             }
-        ))
-        .reply_to_message_id(message.message_id)
-        .build();
 
-    if let Err(err) = api.send_video(&send_video_params).await {
-        println!("Failed to send message: {err:?}");
+            log::info!("Downloading tiktok {}", text);
+
+            let send_typing_params = SendChatActionParams::builder()
+                .chat_id(message.chat.id)
+                .action(ChatAction::UploadVideo)
+                .build();
+
+            if let Err(err) = api.send_chat_action(&send_typing_params).await {
+                log::error!("Failed to send message: {err:?}");
+            }
+
+            let uuid = uuid::Uuid::new_v4().to_string();
+            let name_file = "./video/".to_owned() + &*uuid + ".mp4";
+            let file = std::path::Path::new(&*name_file);
+
+            let yt_dlp_path = std::env::var("YT_DLP")
+                .expect("YT_DLP not set in env");
+
+            let output = Command::new(yt_dlp_path)
+                .args(["-v", &text])
+                .args(["-o", &name_file])
+                .output()
+                .expect("failed to execute process");
+            log::info!("output: {}", String::from_utf8_lossy(&output.stdout));
+
+            let send_video_params = SendVideoParams::builder()
+                .chat_id(message.chat.id)
+                .video(FileUpload::InputFile(
+                    InputFile {
+                        path: file.to_path_buf(),
+                    }
+                ))
+                .reply_to_message_id(message.message_id)
+                .build();
+
+            if let Err(err) = api.send_video(&send_video_params).await {
+                log::error!("Not a text message");
+            }
+
+            std::fs::remove_file(file).expect("Failed to remove video file");
+        },
+        None => {
+            log::info!("Not a text message");
+        }
     }
-
-    std::fs::remove_file(file).expect("Failed to remove video file");
 }
