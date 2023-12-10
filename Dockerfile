@@ -9,9 +9,6 @@ RUN apt-get update && apt-get install -y \
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
-ENV YT_DLP=/usr/local/bin/yt-dlp
-ENV TELEGRAM_TOKEN=YOUR_TELEGRAM_TOKEN
-
 COPY Cargo.toml Cargo.toml
 COPY src src
 RUN cargo build --release

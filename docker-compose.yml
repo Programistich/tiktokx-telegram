@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  tiktokx-telegram:
+    restart: always
+    build:
+      context: .
+    environment:
+      - YT_DLP=/usr/local/bin/yt-dlp
+      - TELEGRAM_TOKEN
