@@ -1,4 +1,4 @@
-FROM rust:alpine3.18
+FROM rust:1.74
 WORKDIR /usr/src/tiktokx-telegram
 
 # Install yt-dlp
