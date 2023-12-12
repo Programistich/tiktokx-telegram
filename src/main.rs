@@ -4,8 +4,8 @@ use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message,
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 
-// https://vm.tiktok.com/ZM6e3Yxy6
-static TIKTOK_REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+";
+// https://vm.tiktok.com/ZM6e3Yxy6 https://www.instagram.com/reel/C0ZVcxvsuWI/
+static TIKTOK_REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+";
 
 #[tokio::main]
 async fn main() {
