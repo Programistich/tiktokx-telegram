@@ -1,14 +1,12 @@
 use std::hash::Hash;
-use std::iter::{Filter, Map};
 use std::process::Command;
-use std::slice::Iter;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, MessageEntity, MessageEntityType, SendChatActionParams, SendVideoParams};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
 
 // https://vm.tiktok.com/ZM6e3Yxy6 https://www.instagram.com/reel/C0ZVcxvsuWI/
-static TIKTOK_REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+";
+static REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+";
 
 #[tokio::main]
 async fn main() {
@@ -85,7 +83,12 @@ async fn process_message(message: Message, api: AsyncApi) {
     match urls {
         Some(urls) => {
             for url in urls {
-                log::info!("Downloading {}", url);
+                // check regex
+                if !regex::Regex::new(REGEX).unwrap().is_match(&url) {
+                    continue;
+                }
+
+                println!("Downloading {}", url);
 
                 let send_typing_params = SendChatActionParams::builder()
                     .chat_id(message.chat.id)
@@ -93,7 +96,7 @@ async fn process_message(message: Message, api: AsyncApi) {
                     .build();
 
                 if let Err(err) = api.send_chat_action(&send_typing_params).await {
-                    log::error!("Failed to send message: {err:?}");
+                    println!("Failed to send message: {err:?}");
                 }
 
                 let uuid = uuid::Uuid::new_v4().to_string();
@@ -108,7 +111,7 @@ async fn process_message(message: Message, api: AsyncApi) {
                     .args(["-o", &name_file])
                     .output()
                     .expect("failed to execute process");
-                log::info!("output: {}", String::from_utf8_lossy(&output.stdout));
+                println!("output: {}", String::from_utf8_lossy(&output.stdout));
 
                 let send_video_params = SendVideoParams::builder()
                     .chat_id(message.chat.id)
@@ -121,12 +124,24 @@ async fn process_message(message: Message, api: AsyncApi) {
                     .build();
 
                 if let Err(err) = api.send_video(&send_video_params).await {
-                    log::error!("Not a text message");
+                    println!("Error sending video: {err:?}");
                 }
+                println!("Video sent");
 
-                std::fs::remove_file(file).expect("Failed to remove video file");
+                match std::fs::remove_file(file) {
+                    Ok(_) => {
+                        println!("Video deleted");
+                    }
+                    Err(err) => {
+                        println!("Video not deleted with error: {err:?}");
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
             }
         },
-        _ => {}
+        _ => {
+            println!("No urls found");
+        }
     }
+    println!("-------------- id: {} --------------", message.message_id);
 }
