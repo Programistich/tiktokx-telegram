@@ -67,6 +67,9 @@ async fn create_output_dir() {
 }
 
 async fn process_message(message: Message, api: AsyncApi) {
+    println!("--------------");
+    println!("Message: {message:?}");
+
     let text  = message.text.clone();
 
     let urls = message.entities.as_ref().map(|entities| {
@@ -111,7 +114,12 @@ async fn process_message(message: Message, api: AsyncApi) {
                     .args(["-o", &name_file])
                     .output()
                     .expect("failed to execute process");
-                println!("output: {}", String::from_utf8_lossy(&output.stdout));
+
+                if output.status.success() {
+                    println!("Output: {}", String::from_utf8_lossy(&output.stdout));
+                } else {
+                    eprintln!("Error: {}", String::from_utf8_lossy(&output.stderr));
+                }
 
                 let send_video_params = SendVideoParams::builder()
                     .chat_id(message.chat.id)
@@ -143,5 +151,4 @@ async fn process_message(message: Message, api: AsyncApi) {
             println!("No urls found");
         }
     }
-    println!("-------------- id: {} --------------", message.message_id);
 }
