@@ -86,7 +86,6 @@ async fn process_message(message: Message, api: AsyncApi) {
     match urls {
         Some(urls) => {
             for url in urls {
-                // check regex
                 if !regex::Regex::new(REGEX).unwrap().is_match(&url) {
                     continue;
                 }
@@ -106,19 +105,27 @@ async fn process_message(message: Message, api: AsyncApi) {
                 let name_file = "./video/".to_owned() + &*uuid + ".mp4";
                 let file = std::path::Path::new(&*name_file);
 
+                let cookies = std::path::Path::new("./cookies.txt");
+
                 let yt_dlp_path = std::env::var("YT_DLP")
                     .expect("YT_DLP not set in env");
 
                 let output = Command::new(yt_dlp_path)
                     .args(["-v", &url])
                     .args(["-o", &name_file])
+                    .args(["--cookies", "./cookies.txt"])
                     .output()
                     .expect("failed to execute process");
 
                 if output.status.success() {
                     println!("Output: {}", String::from_utf8_lossy(&output.stdout));
                 } else {
-                    eprintln!("Error: {}", String::from_utf8_lossy(&output.stderr));
+                    let error = String::from_utf8_lossy(&output.stderr);
+                    if error.contains("login required") {
+                        send_author_info(&api, message.chat.id).await;
+                    } else {
+                        println!("Error: {}", error);
+                    }
                 }
 
                 let send_video_params = SendVideoParams::builder()
@@ -151,4 +158,8 @@ async fn process_message(message: Message, api: AsyncApi) {
             println!("No urls found");
         }
     }
+}
+
+async fn send_author_info(api: &AsyncApi, chat_id: i64)  {
+    print!("Send author info");
 }
