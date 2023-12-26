@@ -1,6 +1,6 @@
 use std::hash::Hash;
 use std::process::Command;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
@@ -105,15 +105,13 @@ async fn process_message(message: Message, api: AsyncApi) {
                 let name_file = "./video/".to_owned() + &*uuid + ".mp4";
                 let file = std::path::Path::new(&*name_file);
 
-                let cookies = std::path::Path::new("./cookies.txt");
-
                 let yt_dlp_path = std::env::var("YT_DLP")
                     .expect("YT_DLP not set in env");
 
                 let output = Command::new(yt_dlp_path)
                     .args(["-v", &url])
                     .args(["-o", &name_file])
-                    .args(["--cookies", "./cookies.txt"])
+                    .args(["--cookies", "cookies.txt"])
                     .output()
                     .expect("failed to execute process");
 
@@ -161,5 +159,9 @@ async fn process_message(message: Message, api: AsyncApi) {
 }
 
 async fn send_author_info(api: &AsyncApi, chat_id: i64)  {
-    print!("Send author info");
+    let send_message_params = SendMessageParams::builder()
+        .chat_id(chat_id)
+        .text("Update cookies")
+        .build();
+    api.send_message(&send_message_params).await;
 }
