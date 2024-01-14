@@ -189,6 +189,5 @@ async fn send_react(api: &AsyncApi, message: &Message, reaction: &str)  {
         .is_big(true)
         .build();
 
-    let result = api.set_message_reaction(&send_react_params).await;
-    println!("{:?}", result);
+    let _ = api.set_message_reaction(&send_react_params).await;
 }
