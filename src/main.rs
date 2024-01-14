@@ -1,6 +1,5 @@
-use std::hash::Hash;
 use std::process::Command;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
@@ -86,70 +85,10 @@ async fn process_message(message: Message, api: AsyncApi) {
     match urls {
         Some(urls) => {
             for url in urls {
-                if !regex::Regex::new(REGEX).unwrap().is_match(&url) {
-                    continue;
+                if regex::Regex::new(REGEX).unwrap().is_match(&url) {
+                    process_video(message, &api, &url).await;
+                    return;
                 }
-
-                println!("Downloading {}", url);
-
-                let send_typing_params = SendChatActionParams::builder()
-                    .chat_id(message.chat.id)
-                    .action(ChatAction::UploadVideo)
-                    .build();
-
-                if let Err(err) = api.send_chat_action(&send_typing_params).await {
-                    println!("Failed to send message: {err:?}");
-                }
-
-                let uuid = uuid::Uuid::new_v4().to_string();
-                let name_file = "./video/".to_owned() + &*uuid + ".mp4";
-                let file = std::path::Path::new(&*name_file);
-
-                let yt_dlp_path = std::env::var("YT_DLP")
-                    .expect("YT_DLP not set in env");
-
-                let output = Command::new(yt_dlp_path)
-                    .args(["-v", &url])
-                    .args(["-o", &name_file])
-                    .args(["--cookies", "cookies.txt"])
-                    .output()
-                    .expect("failed to execute process");
-
-                if output.status.success() {
-                    println!("Output: {}", String::from_utf8_lossy(&output.stdout));
-                } else {
-                    let error = String::from_utf8_lossy(&output.stderr);
-                    if error.contains("login required") {
-                        send_author_info(&api, message.chat.id).await;
-                    } else {
-                        println!("Error: {}", error);
-                    }
-                }
-
-                let send_video_params = SendVideoParams::builder()
-                    .chat_id(message.chat.id)
-                    .video(FileUpload::InputFile(
-                        InputFile {
-                            path: file.to_path_buf(),
-                        }
-                    ))
-                    .reply_to_message_id(message.message_id)
-                    .build();
-
-                if let Err(err) = api.send_video(&send_video_params).await {
-                    println!("Error sending video: {err:?}");
-                }
-                println!("Video sent");
-
-                match std::fs::remove_file(file) {
-                    Ok(_) => {
-                        println!("Video deleted");
-                    }
-                    Err(err) => {
-                        println!("Video not deleted with error: {err:?}");
-                    }
-                }
-                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
             }
         },
         _ => {
@@ -158,10 +97,98 @@ async fn process_message(message: Message, api: AsyncApi) {
     }
 }
 
+async fn process_video(message: Message, api: &AsyncApi, url: &String) {
+    println!("Downloading Video {}", url);
+
+    let send_typing_params = SendChatActionParams::builder()
+        .chat_id(message.chat.id)
+        .action(ChatAction::UploadVideo)
+        .build();
+
+    if let Err(err) = api.send_chat_action(&send_typing_params).await {
+        send_react(&api, &message, "👎").await;
+        println!("Failed to send message: {err:?}");
+    }
+
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let name_file = "./video/".to_owned() + &*uuid + ".mp4";
+    let file = std::path::Path::new(&*name_file);
+
+    let yt_dlp_path = std::env::var("YT_DLP")
+        .expect("YT_DLP not set in env");
+
+    let output = Command::new(yt_dlp_path)
+        .args(["-v", &url])
+        .args(["-o", &name_file])
+        .args(["--cookies", "cookies.txt"])
+        .output()
+        .expect("failed to execute process");
+
+    if output.status.success() {
+        println!("Output: {}", String::from_utf8_lossy(&output.stdout));
+    } else {
+        let error = String::from_utf8_lossy(&output.stderr);
+        send_react(&api, &message, "👎").await;
+        if error.contains("login required") {
+            send_author_info(&api, message.chat.id).await;
+        } else {
+            println!("Error: {}", error);
+        }
+    }
+
+    let reply_params = ReplyParameters::builder()
+        .message_id(message.message_id)
+        .build();
+
+    let send_video_params = SendVideoParams::builder()
+        .chat_id(message.chat.id)
+        .video(FileUpload::InputFile(
+            InputFile {
+                path: file.to_path_buf(),
+            }
+        ))
+        .reply_parameters(reply_params)
+        .build();
+
+    if let Err(err) = api.send_video(&send_video_params).await {
+        send_react(&api, &message, "👎").await;
+        println!("Error sending video: {err:?}");
+    }
+    else {
+        send_react(&api, &message, "👍").await;
+        println!("Video sent");
+
+    }
+    match std::fs::remove_file(file) {
+        Ok(_) => {
+            println!("Video deleted");
+        }
+        Err(err) => {
+            println!("Video not deleted with error: {err:?}");
+        }
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+}
+
 async fn send_author_info(api: &AsyncApi, chat_id: i64)  {
     let send_message_params = SendMessageParams::builder()
         .chat_id(chat_id)
         .text("Update cookies")
         .build();
-    api.send_message(&send_message_params).await;
+    let _ = api.send_message(&send_message_params).await;
+}
+
+async fn send_react(api: &AsyncApi, message: &Message, reaction: &str)  {
+    let reaction = ReactionTypeEmoji { emoji: String::from(reaction) };
+    let reaction_type = ReactionType::Emoji(reaction);
+
+    let send_react_params = SetMessageReactionParams::builder()
+        .chat_id(message.chat.id)
+        .message_id(message.message_id)
+        .reaction(vec![reaction_type])
+        .is_big(true)
+        .build();
+
+    let result = api.set_message_reaction(&send_react_params).await;
+    println!("{:?}", result);
 }
