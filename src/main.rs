@@ -1,11 +1,14 @@
+use std::fs::File;
+use std::io;
 use std::process::Command;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams, ChatId};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
 
 // https://vm.tiktok.com/ZM6e3Yxy6 https://www.instagram.com/reel/C0ZVcxvsuWI/
 static REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+";
+static AUTHOR_ID: u64 = 241629528;
 
 #[tokio::main]
 async fn main() {
@@ -66,8 +69,11 @@ async fn create_output_dir() {
 }
 
 async fn process_message(message: Message, api: AsyncApi) {
-    println!("--------------");
-    println!("Message: {message:?}");
+    // check exist file in message
+    if message.document.is_some() && message.from.as_ref().unwrap().id == AUTHOR_ID {
+        process_update_cookies(message, &api).await;
+        return;
+    }
 
     let text  = message.text.clone();
 
@@ -95,6 +101,37 @@ async fn process_message(message: Message, api: AsyncApi) {
             println!("No urls found");
         }
     }
+}
+
+async fn process_update_cookies(message: Message, api: &AsyncApi) {
+    let file_id = message.document.as_ref().unwrap().file_id.clone();
+    let get_file_params = frankenstein::GetFileParams::builder()
+        .file_id(file_id.clone())
+        .build();
+
+    let file = api.get_file(&get_file_params).await;
+    if file.is_err() {
+        println!("Failed to get file: {file:?}");
+        return;
+    }
+    let file_path = file.unwrap().result.file_path.unwrap();
+
+    let telegram_token = std::env::var("TELEGRAM_TOKEN")
+        .expect("TELEGRAM_TOKEN not set in env");
+    let download_url = format!("https://api.telegram.org/file/bot{}/{}", telegram_token, file_path);
+
+    let resp = reqwest::get(download_url).await.expect("request failed");
+    let body = resp.text().await.expect("body invalid");
+
+    let mut out = File::create("cookies.txt").expect("failed to create file");
+    io::copy(&mut body.as_bytes(), &mut out).expect("failed to copy content");
+
+    let chat_id = ChatId::Integer(message.chat.id);
+    let send_message_params = SendMessageParams::builder()
+        .chat_id(chat_id)
+        .text("Cookies updated")
+        .build();
+    let _ = api.send_message(&send_message_params).await;
 }
 
 async fn process_video(message: Message, api: &AsyncApi, url: &String) {
@@ -171,6 +208,8 @@ async fn process_video(message: Message, api: &AsyncApi, url: &String) {
 }
 
 async fn send_author_info(api: &AsyncApi, chat_id: i64)  {
+    let chat_id = ChatId::Integer(chat_id);
+
     let send_message_params = SendMessageParams::builder()
         .chat_id(chat_id)
         .text("Update cookies")
