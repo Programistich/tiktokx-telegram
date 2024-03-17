@@ -11,5 +11,6 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 
 COPY Cargo.toml Cargo.toml
 COPY src src
+COPY cookies.txt cookies.txt
 RUN cargo build --release
 CMD ["./target/release/tiktokx-telegram"]
