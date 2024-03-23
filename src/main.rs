@@ -70,7 +70,12 @@ async fn create_output_dir() {
 
 async fn process_message(message: Message, api: AsyncApi) {
     // check exist file in message
-    if message.document.is_some() && message.from.as_ref().unwrap().id == AUTHOR_ID {
+    if
+        message.document.is_some() &&
+        message.from.as_ref().unwrap().id == AUTHOR_ID &&
+        message.document.as_ref().unwrap().file_name.clone().unwrap() == "cookies.txt" &&
+        message.chat.id == message.from.as_ref().unwrap().id as i64
+    {
         process_update_cookies(message, &api).await;
         return;
     }
