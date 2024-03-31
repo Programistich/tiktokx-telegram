@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
 use std::process::Command;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams, ChatId};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams, ChatId, SendPhotoParams};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
@@ -82,6 +82,15 @@ async fn process_message(message: Message, api: AsyncApi) {
 
     let text  = message.text.clone();
 
+    if message.text.is_none() {
+        return;
+    }
+
+    if message.text.as_ref().unwrap().contains("/air") {
+        process_air_alert(message, &api).await;
+        return;
+    }
+
     let urls = message.entities.as_ref().map(|entities| {
         entities
             .iter()
@@ -106,6 +115,15 @@ async fn process_message(message: Message, api: AsyncApi) {
             println!("No urls found");
         }
     }
+}
+
+async fn process_air_alert(message: Message, api: &AsyncApi) {
+    let chat_id = ChatId::Integer(message.chat.id);
+    let send_photo_params = SendPhotoParams::builder()
+        .chat_id(chat_id)
+        .photo(FileUpload::String("https://alerts.com.ua/map.png".to_string()))
+        .build();
+    let _ = api.send_photo(&send_photo_params).await;
 }
 
 async fn process_update_cookies(message: Message, api: &AsyncApi) {
