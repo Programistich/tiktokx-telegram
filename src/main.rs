@@ -7,7 +7,7 @@ use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
 
 // https://vm.tiktok.com/ZM6e3Yxy6 https://www.instagram.com/reel/C0ZVcxvsuWI/
-static REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+";
+static REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+|https://www.instagram.com/stories/[A-Za-z0-9]+";
 static AUTHOR_ID: u64 = 241629528;
 
 #[tokio::main]
@@ -105,9 +105,10 @@ async fn process_message(message: Message, api: AsyncApi) {
     match urls {
         Some(urls) => {
             for url in urls {
+                let message = message.clone();
                 if regex::Regex::new(REGEX).unwrap().is_match(&url) {
                     process_video(message, &api, &url).await;
-                    return;
+                    continue;
                 }
             }
         },
@@ -166,7 +167,6 @@ async fn process_video(message: Message, api: &AsyncApi, url: &String) {
         .build();
 
     if let Err(err) = api.send_chat_action(&send_typing_params).await {
-        send_react(&api, &message, "👎").await;
         println!("Failed to send message: {err:?}");
     }
 
@@ -188,7 +188,6 @@ async fn process_video(message: Message, api: &AsyncApi, url: &String) {
         println!("Output: {}", String::from_utf8_lossy(&output.stdout));
     } else {
         let error = String::from_utf8_lossy(&output.stderr);
-        send_react(&api, &message, "👎").await;
         if error.contains("login required") {
             send_author_info(&api, message.chat.id).await;
         } else {
@@ -211,11 +210,9 @@ async fn process_video(message: Message, api: &AsyncApi, url: &String) {
         .build();
 
     if let Err(err) = api.send_video(&send_video_params).await {
-        send_react(&api, &message, "👎").await;
         println!("Error sending video: {err:?}");
     }
     else {
-        send_react(&api, &message, "👍").await;
         println!("Video sent");
 
     }
@@ -239,17 +236,17 @@ async fn send_author_info(api: &AsyncApi, chat_id: i64)  {
         .build();
     let _ = api.send_message(&send_message_params).await;
 }
-
-async fn send_react(api: &AsyncApi, message: &Message, reaction: &str)  {
-    let reaction = ReactionTypeEmoji { emoji: String::from(reaction) };
-    let reaction_type = ReactionType::Emoji(reaction);
-
-    let send_react_params = SetMessageReactionParams::builder()
-        .chat_id(message.chat.id)
-        .message_id(message.message_id)
-        .reaction(vec![reaction_type])
-        .is_big(true)
-        .build();
-
-    let _ = api.set_message_reaction(&send_react_params).await;
-}
+//
+// async fn send_react(api: &AsyncApi, message: &Message, reaction: &str)  {
+//     let reaction = ReactionTypeEmoji { emoji: String::from(reaction) };
+//     let reaction_type = ReactionType::Emoji(reaction);
+//
+//     let send_react_params = SetMessageReactionParams::builder()
+//         .chat_id(message.chat.id)
+//         .message_id(message.message_id)
+//         .reaction(vec![reaction_type])
+//         .is_big(true)
+//         .build();
+//
+//     let _ = api.set_message_reaction(&send_react_params).await;
+// }
