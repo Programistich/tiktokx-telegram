@@ -52,10 +52,9 @@ async fn main() {
             }
             Err(error) => {
                 println!("Failed to get updates: {error:?}");
-                println!("Retry in 5 seconds");
                 update_params = update_params_builder
                     .clone()
-                    .offset(0)
+                    .offset(update_params.offset.unwrap_or(0) + 1)
                     .build();
             }
         }
