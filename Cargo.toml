@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-frankenstein = { version = "0.30.6", default-features = false, features = ["async-http-client"] }
+# frankenstein = { version = "0.30.6", default-features = false, features = ["async-http-client"] }
+frankenstein = { git = "https://github.com/swbartosz/frankenstein.git", branch = "fix_chatmember_restricted" }
 tokio = { version = "1.32.0", features = ["full"] }
 regex = "1.9.6"
 log = "0.4.20"
