@@ -7,7 +7,7 @@ use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
 
 // https://vm.tiktok.com/ZM6e3Yxy6 https://www.instagram.com/reel/C0ZVcxvsuWI/
-static REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+|https://www.instagram.com/stories/[A-Za-z0-9]+";
+static REGEX: &str = r"https://vm\.tiktok\.com/[A-Za-z0-9]+|https://www.instagram.com/reel/[A-Za-z0-9]+|https://www.instagram.com/stories/[A-Za-z0-9]+|https://www.tiktok.com/.+";
 static AUTHOR_ID: u64 = 241629528;
 
 #[tokio::main]
@@ -206,7 +206,7 @@ async fn process_video(message: Message, api: &AsyncApi, url: &String) {
                 path: file.to_path_buf(),
             }
         ))
-        .reply_parameters(reply_params)
+        // .reply_parameters(reply_params)
         .build();
 
     if let Err(err) = api.send_video(&send_video_params).await {
