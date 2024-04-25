@@ -54,7 +54,7 @@ async fn main() {
                 println!("Failed to get updates: {error:?}");
                 update_params = update_params_builder
                     .clone()
-                    .offset(update_params.offset.unwrap_or(0) + 1)
+                    .offset(-1)
                     .build();
             }
         }
