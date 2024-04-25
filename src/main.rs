@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
 use std::process::Command;
-use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams, ChatId, SendPhotoParams};
+use frankenstein::{AsyncTelegramApi, ChatAction, FileUpload, InputFile, Message, SendChatActionParams, SendVideoParams, SendMessageParams, ReplyParameters, ReactionTypeEmoji, ReactionType, SetMessageReactionParams, ChatId, SendPhotoParams, AllowedUpdate};
 use frankenstein::GetUpdatesParams;
 use frankenstein::{AsyncApi, UpdateContent};
 use frankenstein::MessageEntityType::Url;
@@ -22,8 +22,10 @@ async fn main() {
         .expect("TELEGRAM_TOKEN not set in env");
     let api = AsyncApi::new(&*telegram_token);
 
-    let update_params_builder = GetUpdatesParams::builder();
-    let mut update_params = update_params_builder.clone().build();
+    let update_params_builder = GetUpdatesParams::builder()
+        .allowed_updates(vec![AllowedUpdate::Message]);
+
+    let mut update_params = update_params_builder.clone()  .build();;
 
     loop {
         let result = api.get_updates(&update_params).await;
@@ -50,6 +52,10 @@ async fn main() {
             }
             Err(error) => {
                 println!("Failed to get updates: {error:?}");
+                update_params = update_params_builder
+                    .clone()
+                    .offset(0)
+                    .build();
             }
         }
     }
